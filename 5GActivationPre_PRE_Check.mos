@@ -1,0 +1,76 @@
+#############################
+### 5G Node Pre PRE Check ###
+#############################
+
+###  Be sure to update ExternalGNodeBFunction= on lines 74 & 85 of the 1_LTE_ENDC_NGS_Activation and 1_LTE_ENDC_Without_NGS_Activation scripts with the 5G Node ID you are performing the activation on.
+echo "Please enter NodeName :"; read $site
+amos -v username=expert,password=5Gexpert $site
+lt all
+s+
+pv $nodename
+l+ ~/$nodename.log
+### Verify 5G Software is most current and matches 4G node
+
+hget 0 SwVersion
+
+
+###  Verify radios have isSharedWithExternalMe=true if sharing 850 radio with LTE node
+
+hget FieldReplaceableUnit isSharedWithExternalMe|productData
+
+
+###  Run command below to get gNBId to update in  line 75 of the 1_LTE_ENDC_NGS_Activation and 1_LTE_ENDC_Without_NGS_Activation scripts
+
+hget GNBDUFunction=1 gnbid$
+
+
+###  Run command below to get the ipv6Address to put in line 88 of the 1_LTE_ENDC_NGS_Activation and 1_LTE_ENDC_Without_NGS_Activation scripts
+
+get Transport=1,Router=S1,InterfaceIPv6=TN_._S1,AddressIPv6=1$ ^address
+
+
+###  Is the 5G Node sharing a radio with the LTE 850?  If yes, ensure NGS is created with command below.  
+
+get Transport=1,Synchronization=1,RadioEquipmentClock=1,NodeGroupSyncMember=1
+
+
+###  If the 5G is sharing radio and the NGS does NOT exist, CREATE IT NOW!
+### If NGS does not exist use the RiPort from RiLink command in the syncRiPortCandidate
+###  Make note of the RiPorts (A,B,C... D,E,F...)
+
+hget rilink= ref|operationalState
+
+###  Update the RiPorts in the syncRiPortCandidate
+
+crn Transport=1,Synchronization=1,RadioEquipmentClock=1,NodeGroupSyncMember=1
+selectionMode 2
+syncNodePriority 2
+syncRiPortCandidate Equipment=1,FieldReplaceableUnit=1,RiPort=D Equipment=1,FieldReplaceableUnit=1,RiPort=E Equipment=1,FieldReplaceableUnit=1,RiPort=F
+end
+
+###  Verify NGS has been correctly created.
+
+get Transport=1,Synchronization=1,RadioEquipmentClock=1,NodeGroupSyncMember=1
+
+#################################
+### 4G LTE Node Pre PRE Check ###
+#################################
+
+lt all
+s+
+
+### Verify 4G Software matches the 5G node
+
+hget 0 SwVersion
+
+###  Make note of all cells and radios that are locked and unlocked
+st cell
+st rru
+
+### If the 4G and 5G nodes are sharing a 850 radio, make sure the isSharedWithExternalMe=true on the 850 B5 radios.  If the 4G and 5G nodes are NOT sharing a 850 radio, you can stop here.
+
+hget FieldReplaceableUnit isSharedWithExternalMe|productData
+
+###  For 4G nodes sharing a 850 radio with the 5G node, run this command to get the correct RiPorts for the syncRiPortCandidate on line 237 of the 1_LTE_ENDC_NGS_Activation_TEMPLATE_V1.5.mos
+
+invrxbg
